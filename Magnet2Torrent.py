@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """convert magnet link to torrent file.
 
 Created on Apr 19, 2012 @author: dan, Faless
@@ -21,6 +21,7 @@ Created on Apr 19, 2012 @author: dan, Faless
 
 """
 
+import logging
 import os.path as pt
 import shutil
 import sys
@@ -28,9 +29,9 @@ import tempfile
 from argparse import ArgumentParser
 from time import sleep
 try:
-    from urllib.parse import unquote
+    from urllib.parse import unquote_plus
 except ImportError:
-    from urllib import unquote
+    from urllib import unquote_plus
 import libtorrent as lt
 
 
@@ -90,7 +91,7 @@ class Magnet2Torrent(object):
                     soft_limit += 30
                 wait_time += 1
             except KeyboardInterrupt:
-                print("Aborting...")
+                print("\nAborting...")
                 self.ses.pause()
                 print("Cleanup dir " + self.tempdir)
                 shutil.rmtree(self.tempdir)
@@ -109,6 +110,8 @@ class Magnet2Torrent(object):
                                             torinfo.name() + ".torrent"))
             elif pt.isdir(pt.dirname(pt.abspath(self.output_name))):
                 output = pt.abspath(self.output_name)
+        else:
+            output = pt.abspath(torinfo.name() + ".torrent")
 
         print("Saving torrent file here : " + output + " ...")
         with open(output, "wb") as outfile:
@@ -164,14 +167,16 @@ def main():
 
     # guess the name if output name is not given.
     # in a magnet link it is between '&dn' and '&tr'
-    if output_name is None:
-        output_name = magnet.split('&dn=')[1].split('&tr')[0]
-        if '+' in output_name:
-            output_name = unquote(output_name)
-        output_name += '.torrent'
+    try:
+        if output_name is None:
+            output_name = magnet.split('&dn=')[1].split('&tr')[0]
+            output_name = unquote_plus(output_name)
+            output_name += '.torrent'
+    except IndexError:
+        logging.error('magnet: {}'.format(magnet))
 
     # return if user wants to skip existing file.
-    if pt.isfile(output_name) and args.skip_file:
+    if output_name is not None and pt.isfile(output_name) and args.skip_file:
         print('File [{}] already exists.'.format(output_name))
         # still open file if file already exists.
         if args.open_file:
@@ -179,7 +184,7 @@ def main():
         return
 
     # create fullname if file exists.
-    if pt.isfile(output_name) and not args.rewrite_file:
+    if output_name is not None and pt.isfile(output_name) and not args.rewrite_file:
         new_output_name = output_name
         counter = 1
         while pt.isfile(new_output_name):
@@ -192,8 +197,8 @@ def main():
         output_name = new_output_name
 
     # encode magnet link if it's url decoded.
-    if magnet != unquote(magnet):
-        magnet = unquote(magnet)
+    if magnet != unquote_plus(magnet):
+        magnet = unquote_plus(magnet)
 
     conv = Magnet2Torrent(magnet, output_name)
     conv.run()
