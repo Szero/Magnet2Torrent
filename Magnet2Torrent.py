@@ -173,7 +173,7 @@ def main():
             output_name = unquote_plus(output_name)
             output_name += '.torrent'
     except IndexError:
-        logging.error('magnet: {}'.format(magnet))
+        logging.error('magnet: %s', magnet)
 
     # return if user wants to skip existing file.
     if output_name is not None and pt.isfile(output_name) and args.skip_file:
